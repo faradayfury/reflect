@@ -1,0 +1,10 @@
+.DS_Store
+.obsidian/
+.env*
+*.tmp
+/data.json
+/historical.json
+/questions.json
+/owner-note.json
+/astra-trial.json
+/astra-rechecks.json
