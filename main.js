@@ -1346,6 +1346,20 @@ function reviewHeader(el, title, description) {
   return header;
 }
 
+function collectionLink(view, el, kind) {
+  const nav = el.createEl('nav', { cls: 'vault-review-collection-nav', attr: { 'aria-label': 'Reflect collections' } });
+  const link = view.button(nav, kind === 'browse' ? 'Browse passages' : 'View ideas', () => view.showPanel({ kind }),
+    { cls: 'vault-review-quiet vault-review-collection-link' });
+  setIcon(link.createEl('span', { attr: { 'aria-hidden': 'true' } }), 'arrow-right');
+}
+
+function collectionHeader(view, el, title, description, other) {
+  const header = reviewHeader(el, title, description);
+  header.addClass('vault-review-home-header');
+  collectionLink(view, header, other);
+  return header;
+}
+
 function isIdeasPage(route) {
   return route.kind === 'historical' && !route.id && !route.ask && !route.scan;
 }
@@ -1819,24 +1833,14 @@ class BrowsePanel {
   async onOpen() {
     this.breadcrumb = this.content.createEl('nav', { cls: 'vault-review-breadcrumb', attr: { 'aria-label': 'Breadcrumb' } });
     this.breadcrumb.hidden = true;
-    const header = reviewHeader(this.content, this.route.groupTitle || 'Browse', 'Come back to what you’ve written.');
-    header.addClass('vault-review-home-header');
+    const header = collectionHeader(this.view, this.content, this.route.groupTitle || 'Browse',
+      'Come back to what you’ve written.', 'historical');
     this.heading = header.children[0];
-    const actions = header.createDiv({ cls: 'vault-review-actions' });
-    this.findIdeas = this.view.button(actions, FIND_IDEAS, () =>
-      this.view.showPanel({ kind: 'historical', scan: true, firstIdea: true }), { cls: 'mod-cta' });
-    this.findIdeas.hidden = true;
-    this.ask = this.view.button(actions, 'Ask your notes', () => {
-      const topic = this.group()?.title || this.route.query?.trim();
-      this.view.showPanel({ kind: 'historical', ask: topic ? {
-        question: 'What ideas recur in my notes about ' + topic.slice(0, 150) + '?'
-      } : {} });
-    }, { cls: 'vault-review-ask' });
-    this.ask.hidden = true;
-
-    const search = this.content.createEl('label', { cls: 'vault-review-search' });
-    search.createEl('span', { text: 'Search all passages', cls: 'vault-review-label' });
-    this.search = search.createEl('input', { attr: { type: 'search', placeholder: 'Try a word, note title, or idea title' } });
+    const tools = this.content.createDiv({ cls: 'vault-review-browse-tools' });
+    const search = tools.createDiv({ cls: 'vault-review-search' });
+    this.search = search.createEl('input', {
+      attr: { type: 'search', 'aria-label': 'Search all passages', placeholder: 'Try a word, note title, or idea title' }
+    });
     this.search.value = this.route.query || '';
     this.search.addEventListener('input', () => {
       this.route.query = this.search.value;
@@ -1845,6 +1849,19 @@ class BrowsePanel {
       this.route.limit = undefined;
       this.show();
     });
+
+    const actions = tools.createDiv({ cls: 'vault-review-actions' });
+    this.findIdeas = this.view.button(actions, FIND_IDEAS, () =>
+      this.view.showPanel({ kind: 'historical', scan: true, firstIdea: true }), { cls: 'mod-cta' });
+    this.findIdeas.hidden = true;
+    this.ask = this.view.button(actions, 'Ask your notes', () => {
+      const topic = this.group()?.title || this.route.query?.trim();
+      this.view.showPanel({ kind: 'historical', ask: topic ? {
+        question: 'What ideas recur in my notes about ' + topic.slice(0, 150) + '?'
+      } : {} });
+    }, { cls: 'vault-review-action-button' });
+    this.ask.hidden = true;
+
     const categories = this.content.createDiv({
       cls: 'vault-review-history-tabs', attr: { role: 'group', 'aria-label': 'Browse by' }
     });
@@ -2001,18 +2018,44 @@ class BrowsePanel {
     const selected = query ? [...cited, ...rows.filter(row => !cited.has(row) && row.search.includes(query))] :
       group ? rows.filter(row => group.rows.has(row)) : this.route.group ? [] :
         this.route.withIdeas ? rows.filter(row => row.ideas.size) : rows;
-    this.results.createEl('h3', { text: groupTitle || query ? 'Passages' : 'Recent passages', cls: 'vault-review-history-group' });
-    const list = this.results.createEl('ol', { cls: 'vault-review-browse-passages', attr: { role: 'list' } });
-    status(selected.length ? selected.length + (selected.length === 1 ? ' passage' : ' passages') :
+    const passageLabel = groupTitle || query ? 'Passages' : 'Recent passages';
+    if (groupTitle || query) this.results.createEl('h3', { text: passageLabel, cls: 'vault-review-history-group' });
+    const passages = this.results.createDiv();
+    const passageList = (parent, label) => parent.createEl('ol', {
+      cls: 'vault-review-browse-passages', attr: { role: 'list', 'aria-label': label }
+    });
+    let list = recent ? null : passageList(passages, passageLabel);
+    let day, dayGroup, notePath;
+    const appendPassage = row => {
+      if (recent && (!dayGroup || day !== row.date)) {
+        day = row.date;
+        notePath = undefined;
+        dayGroup = passages.createEl('section', { cls: 'vault-review-browse-day-group' });
+        const date = day ? HISTORY_DATE.format(Date.parse(day)) : 'Undated notes';
+        const heading = dayGroup.createEl('h3', { cls: 'vault-review-browse-day' });
+        if (day) heading.createEl('time', { text: date, attr: { datetime: day } });
+        else heading.setText(date);
+      }
+      if (recent && notePath !== row.path) {
+        notePath = row.path;
+        const note = dayGroup.createDiv({ cls: 'vault-review-browse-note-group' });
+        const stamp = /^(\d{4}-\d{2}-\d{2}) ((?:[01]\d|2[0-3])[0-5]\d)$/.exec(row.title);
+        const title = stamp && stamp[1] === day ? stamp[2].slice(0, 2) + ':' + stamp[2].slice(2) : row.title;
+        note.createEl('p', { text: title, cls: 'vault-review-browse-note-title', attr: { title: row.title } });
+        list = passageList(note, row.title);
+      }
+      return this.showPassage(list, row, recent);
+    };
+    status(selected.length ? selected.length.toLocaleString() + (selected.length === 1 ? ' passage' : ' passages') :
       query ? 'No matching passages. Try another word or note title.' :
       groupTitle ? 'No current passages in this group.' :
       this.route.withIdeas ? 'No recent passages with ideas.' : 'Write a note to see recent passages here.');
     const ideas = [...new Set(selected.flatMap(row => [...row.ideas]))];
     const limit = groupTitle ? 6 : 16;
     let shown = Math.min(this.route.limit || limit, selected.length);
-    for (const row of selected.slice(0, shown)) this.showPassage(list, row);
+    for (const row of selected.slice(0, shown)) appendPassage(row);
     const more = this.view.button(this.results, 'Show more passages', () => {
-      const items = selected.slice(shown, shown + limit).map(row => this.showPassage(list, row));
+      const items = selected.slice(shown, shown + limit).map(appendPassage);
       this.route.limit = shown += items.length;
       more.hidden = shown >= selected.length;
       items[0]?.focus();
@@ -2029,7 +2072,7 @@ class BrowsePanel {
       section.createEl('p', { text: 'No ideas cite these passages yet.', cls: 'vault-review-status' });
       return;
     }
-    const list = section.createEl('ul', { cls: 'vault-review-history-list vault-review-list', attr: { role: 'list' } });
+    const list = section.createEl('ul', { cls: 'vault-review-history-list vault-review-list vault-review-idea-list', attr: { role: 'list' } });
     for (const id of ids) {
       const key = JSON.stringify([id, null]);
       const dates = this.drafts.get(id).evidence.map(entry => dateLabel(Date.parse(entry.date))).filter(Boolean).sort();
@@ -2039,24 +2082,34 @@ class BrowsePanel {
     }
   }
 
-  showPassage(list, row) {
+  showPassage(list, row, recent) {
     const item = list.createEl('li');
-    const label = this.view.button(item, '', () => void this.view.openSource(row.path, { quotes: [row.quote] }), {
-      cls: 'vault-review-note vault-review-browse-source'
-    });
-    if (row.date) label.createEl('time', { text: HISTORY_DATE.format(Date.parse(row.date)), attr: { datetime: row.date } });
-    label.createEl('span', { text: row.title });
-    setIcon(label.createEl('span', { attr: { 'aria-hidden': 'true' } }), 'arrow-up-right');
+    const line = recent ? item.createDiv({ cls: 'vault-review-browse-passage-line' }) : item;
     const text = linkLabels(row.quote).replace(/^[ \t]*[-*+] /gm, '');
-    item.createEl('blockquote', { text: text.length > BROWSE_EXCERPT_LIMIT ? text.slice(0, BROWSE_EXCERPT_LIMIT).trimEnd() + '…' : text });
+    const preview = text.length > BROWSE_EXCERPT_LIMIT ? text.slice(0, BROWSE_EXCERPT_LIMIT).trimEnd() + '…' : text;
+    if (recent) line.createEl('blockquote', { text: preview });
+    const label = this.view.button(line, '', () => void this.view.openSource(row.path, { quotes: [row.quote] }), {
+      cls: recent ? 'vault-review-quiet vault-review-browse-open' : 'vault-review-note vault-review-browse-source',
+      attr: recent ? {
+        'aria-label': 'Open passage in ' + row.title + ': ' + preview.replace(/\s+/g, ' ').slice(0, 64),
+        title: 'Open original passage'
+      } : {}
+    });
+    if (!recent) {
+      if (row.date) label.createEl('time', { text: HISTORY_DATE.format(Date.parse(row.date)), attr: { datetime: row.date } });
+      label.createEl('span', { text: row.title });
+    }
+    setIcon(label.createEl('span', { attr: { 'aria-hidden': 'true' } }), 'arrow-up-right');
+    if (!recent) item.createEl('blockquote', { text: preview });
     if (row.ideas.size) {
       const actions = item.createDiv({ cls: 'vault-review-actions' });
       for (const id of row.ideas) {
         const key = JSON.stringify([id, row.key]);
-        this.view.button(actions, this.title(id), () => this.openIdea(id, key), {
+        const idea = this.view.button(actions, this.title(id), () => this.openIdea(id, key), {
           cls: 'vault-review-note vault-review-browse-see-idea',
           attr: { 'data-vault-review-row': key }
         });
+        if (recent) setIcon(idea.createEl('span', { attr: { 'aria-hidden': 'true' } }), 'lightbulb');
       }
     }
     return label;
@@ -2085,11 +2138,17 @@ class HistoricalPanel {
       await this.showQuestion();
       return;
     }
-    let actions, ask;
+    let ask, scan;
     if (!this.route.id) {
-      const header = reviewHeader(this.content, 'Ideas', 'Read the passages behind an idea and keep what you want to come back to.');
-      header.addClass('vault-review-home-header');
-      actions = header.createDiv({ cls: 'vault-review-actions' });
+      collectionHeader(this.view, this.content, 'Ideas',
+        'Read the passages behind an idea and keep what you want to come back to.', 'browse');
+      const actions = this.content.createDiv({ cls: 'vault-review-actions vault-review-ideas-tools' });
+      ask = this.view.button(actions, 'Ask your notes', () => this.view.showPanel({ kind: 'historical', ask: {} }),
+        { cls: 'vault-review-action-button' });
+      ask.hidden = true;
+      scan = this.view.button(actions, MORE_IDEAS, () => this.view.showPanel({ kind: 'historical', scan: true }),
+        { cls: 'vault-review-action-button' });
+      scan.hidden = true;
       const options = this.view.button(actions, '', event => {
         const menu = new Menu();
         menu.addItem(item => item.setTitle('Saved feedback').setIcon('message-square').onClick(() =>
@@ -2098,8 +2157,6 @@ class HistoricalPanel {
         menu.showAtPosition({ x: rect.left, y: rect.bottom });
       }, { cls: 'vault-review-quiet vault-review-options', attr: { 'aria-label': 'Ideas options', 'aria-haspopup': 'menu' } });
       setIcon(options, 'ellipsis');
-      ask = this.view.button(actions, 'Ask your notes', () => this.view.showPanel({ kind: 'historical', ask: {} }), { cls: 'vault-review-ask' });
-      ask.hidden = true;
       this.showSavedQuestions();
     }
     const status = this.content.createDiv({ cls: 'vault-review-status', text: 'Reading cached drafts…', attr: { role: 'status' } });
@@ -2129,13 +2186,11 @@ class HistoricalPanel {
       ask.hidden = !canFindIdeas;
       this.content.createEl('p', { text: canFindIdeas ?
         'An idea can start with something you’ve noticed more than once.' : TWO_NOTES });
-      this.view.button(this.content, canFindIdeas ? FIND_IDEAS : 'Browse your notes', () =>
-        this.view.showPanel(canFindIdeas ? { kind: 'historical', scan: true, firstIdea: true } : { kind: 'browse' }),
-        { cls: 'mod-cta' });
+      if (canFindIdeas) this.view.button(this.content, FIND_IDEAS, () =>
+        this.view.showPanel({ kind: 'historical', scan: true, firstIdea: true }), { cls: 'mod-cta' });
       return;
     }
-    ask.hidden = false;
-    this.view.button(actions, MORE_IDEAS, () => this.view.showPanel({ kind: 'historical', scan: true }));
+    ask.hidden = scan.hidden = false;
     this.showList(cache.drafts);
   }
 
@@ -2319,7 +2374,7 @@ class HistoricalPanel {
       ['oldest', 'Earliest source first'], ['newest', 'Latest source first'], ['title', 'Title']
     ]) sort.createEl('option', { text, attr: { value } });
     sort.value = this.route.sort || 'newest';
-    const list = this.content.createEl('ul', { cls: 'vault-review-history-list vault-review-list', attr: { role: 'list' } });
+    const list = this.content.createEl('ul', { cls: 'vault-review-history-list vault-review-list vault-review-idea-list', attr: { role: 'list' } });
     const ideas = drafts.filter(draft => draft.kind !== 'context').map(draft => {
       const dates = draft.evidence.map(entry => entry.date).filter(date =>
         /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date))).sort();
@@ -2353,9 +2408,8 @@ class HistoricalPanel {
     show();
   }
 
-  editableDraftTitle(intro, draft, kept) {
+  editableDraftTitle(header, draft, kept) {
     let title = this.ideas.draftTitle(draft, kept);
-    const header = intro.createEl('header', { cls: 'vault-review-header' });
     const heading = header.createEl('h2', { cls: 'vault-review-title', attr: { tabindex: '-1' } });
     const field = heading.createEl('span', { text: title, cls: 'vault-review-editable-title', attr: {
       contenteditable: 'plaintext-only', role: 'textbox', 'aria-label': 'Idea title', 'aria-multiline': 'false', spellcheck: 'false'
@@ -2403,7 +2457,12 @@ class HistoricalPanel {
     const kept = await this.ideas.findKept(draft);
     if (this.closed) return;
     const intro = this.content.createDiv({ cls: 'vault-review-draft-intro' });
-    const titleField = this.editableDraftTitle(intro, draft, kept);
+    const header = intro.createEl('header', { cls: 'vault-review-header' });
+    const ideaState = header.createEl('span', {
+      text: kept ? 'Kept' : 'Draft', cls: 'vault-review-label vault-review-draft-state',
+      attr: { 'data-status': kept ? 'kept' : 'draft' }
+    });
+    const titleField = this.editableDraftTitle(header, draft, kept);
     const interpretation = intro.createEl('section', { cls: 'vault-review-draft-interpretation' });
     interpretation.createEl('h3', { text: 'AI interpretation' });
     interpretation.createEl('p', { text: draft.synthesis });
@@ -2426,11 +2485,12 @@ class HistoricalPanel {
     }
     const pending = kept ? await this.pendingSourceLinks(kept) : [];
     if (this.closed) return;
+    const footer = this.content.createDiv({ cls: 'vault-review-draft-footer' });
     const optionalLinks = new Map();
     if (!kept) {
       const extras = this.extraLinks(draft, sources);
       if (extras.length) {
-        const fieldset = this.content.createEl('fieldset', { cls: 'vault-review-extra-links' });
+        const fieldset = footer.createEl('fieldset', { cls: 'vault-review-extra-links' });
         fieldset.createEl('legend', { text: 'Optional links' });
         for (const { file, reason, checked = true } of extras) {
           const label = fieldset.createEl('label');
@@ -2443,7 +2503,7 @@ class HistoricalPanel {
       }
     }
     const choices = kept ? pending : draft.kind === 'context' ? [] : [...sources.keys()];
-    const picker = this.content.createEl('fieldset', { cls: 'vault-review-extra-links' });
+    const picker = footer.createEl('fieldset', { cls: 'vault-review-extra-links' });
     picker.hidden = !choices.length || !this.route.choosingSourceLinks;
     const sourceLinks = new Map();
     if (choices.length) {
@@ -2460,8 +2520,9 @@ class HistoricalPanel {
         label.createEl('span', { text: path.replace(/\.md$/i, '') });
       }
     }
-    const actions = this.content.createDiv({ cls: 'vault-review-actions' });
-    this.view.button(actions, 'Feedback', async () => {
+    const controlsRow = footer.createDiv({ cls: 'vault-review-draft-controls' });
+    const actions = controlsRow.createDiv({ cls: 'vault-review-actions' });
+    this.view.button(controlsRow, 'Feedback', async () => {
       const titleSave = this.commitTitle();
       if ((titleSave && !(await titleSave)) || this.closed) return;
       this.view.showPanel({ kind: 'feedback', suggestion: {
@@ -2469,16 +2530,16 @@ class HistoricalPanel {
       } });
     }, { cls: 'vault-review-quiet' });
     const review = this.view.plugin.queue.draftReviews.get(draft.id);
-    if (review) this.content.createEl('p', {
+    if (review) footer.createEl('p', {
       text: 'Last local recheck suggests ' + review.recommendation + '. ' + review.reason,
       cls: 'vault-review-status'
     });
     const astra = this.view.plugin.astraResult('historical', draft.id);
-    if (astra) this.content.createEl('p', {
+    if (astra) footer.createEl('p', {
       text: 'Astra rechecked ' + astraDate(astra.at) + '. Recommendation: ' + astra.recommendation + '. ' + astra.reason,
       cls: 'vault-review-status'
     });
-    const status = this.content.createDiv({ cls: 'vault-review-status', attr: { role: 'status' } });
+    const status = footer.createDiv({ cls: 'vault-review-status', attr: { role: 'status' } });
     const openKept = file => this.view.openSource(file.path, { openGraph: true, onRight: true, fromRoute: this.route });
     const showKeptActions = async file => {
       this.view.button(actions, 'Open kept note', () => void openKept(file));
@@ -2538,6 +2599,8 @@ class HistoricalPanel {
         }
         const selected = picker.hidden ? [] : checkedPaths(sourceLinks);
         file = kept || await this.keep(latest, checkedPaths(optionalLinks), selected);
+        ideaState.setText('Kept');
+        ideaState.setAttribute('data-status', 'kept');
         const remaining = await this.finishSourceLinks(latest, file, selected);
         if (this.closed) return;
         this.route.choosingSourceLinks = false;
@@ -2891,24 +2954,19 @@ class VaultReviewView extends ItemView {
     this.panel?.onClose?.();
     this.panel = null;
     const panel = page.createDiv({ cls: 'vault-review-workspace-panel' });
-    if (route.kind === 'browse' || route.kind === 'historical') {
-      const nav = panel.createEl('nav', { cls: 'vault-review-destinations', attr: { 'aria-label': 'Reflect' } });
-      for (const [kind, label, current] of [['browse', 'Browse', route.kind === 'browse'], ['historical', 'Ideas', isIdeasPage(route)]]) {
-        this.button(nav, label, () => this.showPanel({ kind }), {
-          cls: 'vault-review-quiet', attr: current ? { 'aria-current': 'page' } : {}
-        });
-      }
-    }
     const previous = this.history.at(-1);
+    const ideaDetail = route.kind === 'historical' && !isIdeasPage(route);
+    const wayfinding = ideaDetail ? panel.createDiv({ cls: 'vault-review-wayfinding' }) : panel;
     if (previous) {
       const label = previous.ask ? 'Ask your notes' : previous.scan ? (previous.firstIdea ? FIND_IDEAS : MORE_IDEAS) : previous.groupTitle ||
         { historical: previous.id ? 'Idea' : 'Ideas', browse: 'Browse', recent: 'Review notes', ready: 'Suggestions' }[previous.kind];
-      const back = this.button(panel, '', () => this.goBack(), {
+      const back = this.button(wayfinding, '', () => this.goBack(), {
         cls: 'vault-review-back vault-review-quiet', attr: { 'aria-label': label ? 'Back to ' + label : 'Back' }
       });
       setIcon(back.createEl('span', { attr: { 'aria-hidden': 'true' } }), 'arrow-left');
       back.createEl('span', { text: label || 'Back' });
     }
+    if (ideaDetail) collectionLink(this, wayfinding, previous && isIdeasPage(previous) ? 'browse' : 'historical');
     const content = panel.createDiv();
     if (route.kind === 'recent') {
       await this.renderRecent(content, version);
@@ -3044,7 +3102,9 @@ class VaultReviewView extends ItemView {
       HISTORY_DATE.formatRange(Date.parse(first), Date.parse(last))) : description;
     if (date) copy.createEl('span', { text: date, cls: 'vault-review-row-path' });
     const end = row.createEl('span', { cls: 'vault-review-row-end' });
-    if (status) end.createEl('span', { text: status, cls: 'vault-review-row-count' });
+    if (status) end.createEl('span', {
+      text: status, cls: status === 'Draft' ? 'vault-review-row-count vault-review-row-draft' : 'vault-review-row-count'
+    });
     setIcon(end.createEl('span', { attr: { 'aria-hidden': 'true' } }), icon);
   }
 
@@ -3131,7 +3191,6 @@ class VaultReviewView extends ItemView {
         void this.openSource(path, { openGraph: true, quotes: passages });
       };
       const button = this.button(card, '', () => open(), { cls: 'vault-review-source-open' });
-      setIcon(button.createEl('span', { cls: 'vault-review-source-icon', attr: { 'aria-hidden': 'true' } }), 'file-text');
       const label = button.createEl('span', { cls: 'vault-review-source-label' });
       label.createEl('span', { text: title });
       const date = entries.find(entry => entry.date)?.date;
@@ -3141,7 +3200,7 @@ class VaultReviewView extends ItemView {
       setIcon(button.createEl('span', { cls: 'vault-review-source-arrow', attr: { 'aria-hidden': 'true' } }), 'arrow-up-right');
       const excerpts = card.createDiv({ cls: 'vault-review-source-excerpts' });
       for (const entry of entries) {
-        excerpts.createEl('p', { text: entry.quote, cls: 'vault-review-source-quote' });
+        excerpts.createEl('blockquote', { cls: 'vault-review-source-quote' }).createEl('p', { text: entry.quote });
       }
       card.addEventListener('click', event => {
         if (button.contains(event.target)) return;

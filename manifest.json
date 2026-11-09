@@ -1,8 +1,8 @@
 {
   "id": "reflect",
   "name": "Reflect",
-  "version": "0.14.0",
-  "minAppVersion": "1.7.2",
+  "version": "0.15.0",
+  "minAppVersion": "1.15.0",
   "description": "Revisit your notes to see which ideas keep coming up and what you make of them now.",
   "author": "faradayfury",
   "isDesktopOnly": true,

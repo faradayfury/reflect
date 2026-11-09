@@ -14,7 +14,7 @@ That’s how I ended up building Reflect. It brings related passages together in
 
 ## Install
 
-Reflect runs in Obsidian Desktop. This release has been tested on macOS.
+Reflect requires Obsidian Desktop 1.15.0 or later. This release has been tested on macOS.
 
 For a manual install, download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/faradayfury/reflect/releases/latest). Put them in your vault's `.obsidian/plugins/reflect` folder. Restart Obsidian, open **Settings → Community plugins**, and enable **Reflect**.
 
@@ -32,6 +32,8 @@ For a manual install, download `main.js`, `manifest.json`, and `styles.css` from
 Install and start Ollama for local suggestions, then run `ollama pull qwen3:4b`. Reflect checks the local Ollama ports `11434` and `11439`. [Download Ollama](https://ollama.com/download)
 
 Astra features require the Codex CLI and an account with access to Astra. Install the CLI and run `codex login`. To check your setup, run `codex login status` or `ollama list` in Terminal. [Codex CLI setup](https://learn.chatgpt.com/docs/codex/cli)
+
+Reflect is free and can browse passages without an account. The optional Astra features use your own OpenAI account and may require a paid plan or usage credits.
 
 ## Data and privacy
 

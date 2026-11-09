@@ -168,15 +168,73 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .vault-review-browse-source .svg-icon { inline-size: .85rem; block-size: .85rem; }
 .vault-review-browse-passages blockquote { margin: 0; padding: 0; border: 0; font: var(--font-text-size, 1rem)/1.55 var(--font-text); }
 .vault-review-browse-passages .vault-review-actions { flex-flow: column nowrap; align-items: flex-start; margin: .15rem 0 0; }
-.vault-review .vault-review-browse-see-idea { font-size: var(--font-ui-small); font-weight: 600; }
+.vault-review .vault-review-browse-see-idea { gap: .4rem; font-size: var(--font-ui-small); font-weight: 600; }
+.vault-review-browse-day-group { margin-block-start: .8rem; }
+.vault-review-browse-day-group + .vault-review-browse-day-group { margin-block-start: 4rem; }
+.vault-review-browse-day {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin: 0 0 .7rem;
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.vault-review-browse-day::after { content: ''; flex: 1; border-block-start: 1px solid var(--review-rule); }
+.vault-review-browse-note-group + .vault-review-browse-note-group { margin-block-start: .75rem; }
+.vault-review-browse-note-title {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller, var(--font-ui-small));
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.vault-review-browse-note-group .vault-review-browse-passages > li { border: 0; padding: 0; }
+.vault-review-browse-passage-line { display: flex; align-items: flex-start; gap: .2rem; }
+.vault-review-browse-passage-line blockquote { min-inline-size: 0; padding-block: .4rem; }
+.vault-review .vault-review-browse-open {
+  flex: none;
+  inline-size: 40px;
+  padding: 0;
+}
+.vault-review-browse-open [aria-hidden=true],
+.vault-review-browse-see-idea [aria-hidden=true] { display: inline-flex; flex: none; }
+.vault-review-browse-open .svg-icon,
+.vault-review-browse-see-idea .svg-icon { inline-size: .85rem; block-size: .85rem; }
+.vault-review-browse-note-group .vault-review-actions { margin: 0; padding: 0; }
+.vault-review-browse-see-idea [aria-hidden=true] { order: -1; }
+.vault-review .vault-review-browse-open:active { color: var(--text-accent); }
+@media (hover: hover) and (pointer: fine) {
+  .vault-review .vault-review-browse-open:hover { color: var(--text-accent); background: var(--background-modifier-hover); }
+}
 .vault-review-browse-ideas { margin-block-start: 1.2rem; }
 .vault-review-idea-filter { display: inline-flex; align-items: center; gap: .4rem; min-block-size: 40px; font-size: var(--font-ui-small); cursor: pointer; }
-.vault-review-destinations { display: flex; flex-wrap: wrap; gap: .25rem; margin-block-end: .8rem; }
-.vault-review-destinations button[aria-current='page'] {
+.vault-review-collection-nav { display: flex; min-inline-size: 0; }
+.vault-review .vault-review-collection-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  block-size: auto;
+  padding-inline: .5rem .35rem;
   color: var(--text-normal);
-  background: var(--background-modifier-hover);
-  font-weight: 600;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  white-space: normal;
+  text-align: start;
 }
+.vault-review-collection-link [aria-hidden=true] { display: inline-flex; flex: none; color: var(--text-accent); }
+.vault-review-collection-link .svg-icon { inline-size: .95rem; block-size: .95rem; }
+.vault-review-collection-link:dir(rtl) .svg-icon { transform: scaleX(-1); }
+.vault-review-wayfinding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2rem .85rem;
+  margin-block-end: .5rem;
+}
+.vault-review .vault-review-wayfinding .vault-review-back { margin: 0; }
+.vault-review-wayfinding .vault-review-collection-nav { margin-inline-start: auto; }
 .vault-review-breadcrumb ol {
   display: flex;
   flex-wrap: wrap;
@@ -243,7 +301,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
   --review-tab-inset: clamp(.4rem, 1.5cqi, .75rem);
   display: flex;
   flex-wrap: wrap;
-  margin-block: clamp(.6rem, 3cqi, 1rem) .5rem;
+  margin-block: .65rem .45rem;
   box-shadow: inset 0 -1px 0 var(--review-rule);
 }
 .vault-review .vault-review-history-tabs button {
@@ -279,7 +337,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 @media (hover: hover) and (pointer: fine) {
   .vault-review .vault-review-history-tabs button:hover { background: transparent; color: var(--text-normal); }
 }
-.vault-review-history-results { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem 1rem; margin-block-end: .5rem; }
+.vault-review-history-results { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .2rem 1rem; margin-block-end: .55rem; }
 .vault-review-history-results .vault-review-status { flex: 1 1 auto; margin: 0; }
 .vault-review-history-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .8rem; max-inline-size: 100%; }
 .vault-review-select-label { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .55rem; max-inline-size: 100%; }
@@ -298,27 +356,63 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 }
 .vault-review-history-list { margin: 0; padding: 0; list-style: none; }
 .vault-review .vault-review-history-list .vault-review-list-row { grid-template-columns: minmax(0, 1fr) auto; padding: .75rem .5rem; }
+.vault-review-idea-list .vault-review-row-title { font-size: var(--font-ui-medium); line-height: 1.35; }
+.vault-review-idea-list .vault-review-row-path {
+  margin-block-start: .2rem;
+  font-size: var(--font-ui-smaller, var(--font-ui-small));
+  line-height: 1.4;
+}
+.vault-review-idea-list .vault-review-row-draft,
+.vault-review-draft-state[data-status="draft"] {
+  padding: .12rem .4rem;
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--text-accent) 12%, transparent);
+  color: var(--text-accent);
+}
 .vault-review-history-group { margin-block: 1rem .45rem; font-size: var(--font-ui-medium); overflow-wrap: anywhere; }
-.vault-review-home-header { display: grid; align-items: center; gap: .5rem 1rem; margin: 0; }
-.vault-review-home-header .vault-review-description { margin: 0; }
-.vault-review-home-header .vault-review-actions { margin: 0; padding: 0; }
-@container (min-width: 26rem) {
-  .vault-review-home-header { grid-template-columns: minmax(0, 1fr) auto; }
-  .vault-review-home-header .vault-review-actions { grid-area: 1 / 2; }
-  .vault-review-home-header .vault-review-description { grid-column: 1 / -1; }
+.vault-review-home-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .3rem 1rem;
+  margin-block: 0 clamp(.8rem, 2.6cqi, 1.2rem);
+}
+.vault-review-home-header .vault-review-description { grid-column: 1 / -1; margin: 0; }
+.vault-review-home-header .vault-review-collection-nav { grid-area: 1 / 2; justify-self: end; }
+.vault-review-browse-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: .35rem .85rem;
+}
+.vault-review-browse-tools .vault-review-search { flex: 1 1 16rem; min-inline-size: 0; margin: 0; }
+.vault-review-browse-tools .vault-review-actions { margin: 0; padding: 0; }
+.vault-review-browse-tools .vault-review-actions:not(:has(button:not([hidden]))) { display: none; }
+.vault-review-ideas-tools { align-items: center; gap: .4rem .5rem; margin-block: 0 .65rem; padding: 0; }
+.vault-review .vault-review-action-button {
+  max-inline-size: 100%;
+  block-size: auto;
+  padding: .45rem .75rem;
+  border: 1px solid var(--background-modifier-border-hover);
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.vault-review .vault-review-action-button:active { background: var(--background-modifier-active-hover); }
+@container (max-width: 16rem) {
+  .vault-review-home-header { grid-template-columns: minmax(0, 1fr); gap: .15rem; }
+  .vault-review-home-header .vault-review-collection-nav { grid-area: auto; justify-self: start; }
+  .vault-review-home-header .vault-review-collection-link { padding-inline-start: 0; }
 }
 @container (max-width: 36rem) {
   .vault-review .vault-review-history-list .vault-review-list-row { padding-block: .55rem; min-block-size: 3rem; }
 }
 .vault-review .vault-review-options { inline-size: 40px; }
-.vault-review .vault-review-ask {
-  border: 1px solid var(--review-rule);
-  box-shadow: none;
-  background: transparent;
-  color: var(--text-normal);
-}
 @media (hover: hover) and (pointer: fine) {
-  .vault-review .vault-review-ask:hover { background: var(--background-modifier-hover); }
+  .vault-review :is(.vault-review-collection-link, .vault-review-action-button):hover { background: var(--background-modifier-hover); }
   .vault-review .vault-review-history-results select.dropdown:hover { background-color: transparent; color: var(--text-normal); }
 }
 .vault-review-saved-questions { margin-block-start: 1.15rem; border-block-start: 1px solid var(--review-rule); padding-block-start: .65rem; }
@@ -336,33 +430,55 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .vault-review-question-finding summary > :last-child { margin-inline-start: 1em; }
 
 .vault-review-draft-intro {
-  --draft-section-gap: clamp(1.75rem, 6cqi, 3rem);
   display: grid;
-  gap: var(--draft-section-gap);
+  gap: clamp(1.1rem, 4cqi, 1.8rem);
   max-inline-size: 42rem;
-  padding-block-start: .65rem;
-  margin-block-end: var(--draft-section-gap);
+  padding-block-start: .5rem;
 }
 .vault-review-draft-intro .vault-review-header { margin: 0; }
+.vault-review-draft-state {
+  display: inline-block;
+  margin-block-end: .55rem;
+  line-height: 1.4;
+}
 .vault-review .vault-review-draft-intro .vault-review-title {
   max-inline-size: 28ch;
   font-size: clamp(1.75rem, 5.75cqi, 2.6rem);
 }
 .vault-review-editable-title { display: block; cursor: text; border-radius: var(--radius-s); }
 .vault-review-editable-title:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 4px; }
+.vault-review-draft-interpretation {
+  padding: .85rem 1rem;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
 .vault-review .vault-review-draft-interpretation h3 {
   margin: 0;
-  color: var(--text-normal);
-  font: 600 1.125rem/1.3 var(--font-interface);
+  color: var(--text-muted);
+  font: 500 var(--font-ui-small)/1.4 var(--font-interface);
 }
 .vault-review-draft-interpretation p {
   max-inline-size: 62ch;
-  margin-block: .7rem 0;
+  margin-block: .35rem 0;
   color: var(--text-normal);
   font: var(--font-text-size, 1rem)/1.65 var(--font-text);
   overflow-wrap: anywhere;
   text-wrap: pretty;
 }
+.vault-review-draft-footer {
+  margin-block-start: 1.45rem;
+  padding-block-start: .65rem;
+  border-block-start: 1px solid var(--review-rule);
+}
+.vault-review-draft-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: .35rem .85rem;
+}
+.vault-review-draft-controls .vault-review-actions { margin: 0; padding: 0; }
+.vault-review-draft-footer .vault-review-status:empty { display: none; }
 
 .vault-review-sources { margin-block: 1.55rem 1.25rem; }
 .vault-review-sources-heading {
@@ -374,24 +490,21 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
   margin-block-end: .65rem;
 }
 .vault-review-sources-heading h3 { margin: 0; font-size: var(--font-ui-medium); font-weight: 600; }
-.vault-review-source-list { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
+.vault-review-source-list { margin: 0; padding: 0; list-style: none; }
 .vault-review-source-card {
-  --source-inset: clamp(.8rem, 3cqi, 1.1rem);
-  border: 1px solid var(--review-rule);
-  border-radius: var(--radius-m);
-  background: color-mix(in srgb, var(--background-secondary) 65%, var(--background-primary));
+  border-block-start: 1px solid var(--review-rule);
+  padding-block: .15rem .95rem;
   cursor: pointer;
 }
 .vault-review .vault-review-source-open {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: .65rem;
   inline-size: 100%;
   block-size: auto;
   min-block-size: 44px;
-  padding: .7rem var(--source-inset);
-  border-radius: var(--radius-m) var(--radius-m) 0 0;
+  padding: .5rem 0;
   color: var(--text-normal);
   background: transparent;
   box-shadow: none;
@@ -401,40 +514,28 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
   overflow-wrap: anywhere;
   cursor: pointer;
 }
-.vault-review-source-label { display: grid; gap: .15rem; }
+.vault-review-source-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .65rem; }
 .vault-review-source-label time { font-weight: 400; font-variant-numeric: tabular-nums; }
-.vault-review-source-icon,
-.vault-review-source-arrow { display: grid; place-items: center; }
-.vault-review-source-icon {
-  inline-size: 1.8rem;
-  block-size: 1.8rem;
-  border-radius: var(--radius-s);
-  background: color-mix(in srgb, var(--text-accent) 10%, transparent);
-  color: var(--text-accent);
-}
-.vault-review-source-arrow { color: var(--text-muted); }
+.vault-review-source-arrow { display: grid; place-items: center; color: var(--text-muted); }
 .vault-review-source-open .svg-icon { inline-size: .95rem; block-size: .95rem; }
 .vault-review-source-excerpts {
   display: grid;
-  gap: .8rem;
-  padding: 0 var(--source-inset) .9rem;
-  color: var(--text-normal);
-  font-family: var(--font-text);
-  font-size: var(--font-text-size);
-  line-height: var(--line-height-normal, 1.5);
+  gap: .65rem;
   user-select: text;
 }
-.vault-review-source-excerpts p {
-  max-inline-size: 65ch;
+.vault-review-source-quote {
   margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  padding: 0;
+  padding-inline-start: .75rem;
+  border: 0;
+  border-inline-start: 2px solid var(--review-rule);
+  color: var(--text-normal);
+  font: var(--font-text-size, 1rem)/1.55 var(--font-text);
 }
-.vault-review-source-card:focus-within { border-color: var(--text-muted); }
-.vault-review-source-card:active { background: var(--background-modifier-active-hover); }
+.vault-review-source-quote p { margin: 0; }
+.vault-review-source-open:active { color: var(--text-accent); }
 @media (hover: hover) and (pointer: fine) {
-  .vault-review-source-card:hover { border-color: var(--background-modifier-border-hover); }
-  .vault-review-source-card:hover .vault-review-source-arrow { color: var(--text-accent); }
+  .vault-review-source-open:hover .vault-review-source-arrow { color: var(--text-accent); }
 }
 
 .callout[data-callout-metadata="vault-review-source"] {
