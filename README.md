@@ -1,6 +1,6 @@
 # Reflect
 
-Reflect helps you revisit what you have written and see which ideas come up across your notes. Each suggested connection includes passages you can check in the original notes.
+Reflect is an Obsidian plugin for coming back to what you’ve written. It brings related passages together so you can see which ideas keep coming up. Each passage links back to the note it came from.
 
 ## Why I built Reflect
 
