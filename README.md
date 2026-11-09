@@ -14,6 +14,16 @@ I wanted to go back through my notes and see what I kept thinking about. A note 
 
 That’s how I ended up building Reflect. It brings related passages together in Obsidian so I can read what I actually wrote and see what I make of it now. If an idea feels worth coming back to, I can keep it as a note of its own, with links to the notes that led me there. And something I write next week might give me a reason to read them all again.
 
+## See Reflect in use
+
+**Browse passages.** Revisit your notes by date and follow an idea that shows up in more than one passage.
+
+![Browse in Reflect, showing dated passages and a related idea in a sample vault.](docs/screenshots/browse.png)
+
+**Read and keep an idea.** Read the interpretation alongside the original passages. Keep the idea as a note if you want to come back to it.
+
+![A draft idea in Reflect, showing the interpretation, two original passages, and the Keep idea button.](docs/screenshots/idea.png)
+
 ## Install
 
 Reflect requires Obsidian Desktop 1.15.0 or later. This release has been tested on macOS.
