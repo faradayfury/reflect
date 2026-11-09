@@ -20,10 +20,11 @@ For a manual install, download `main.js`, `manifest.json`, and `styles.css` from
 
 ## Use Reflect
 
-- **Browse passages** to revisit your notes by date, people and places, themes, or projects. This works with your local vault files.
-- **Open ideas** to read drafts and kept ideas alongside their original passages. Keep a draft to save it as a Markdown note. You choose which source notes link back to it.
-- **Review active note** to find missing links or see how the current note connects to ideas you already have. Select **Find matching ideas**, check the quoted passages, then choose **Add source** to keep the connection.
-- **Scan vault with Astra** to find ideas across your existing notes. Open **Ideas**, select **Scan vault with Astra**, then select **Run scan**. Later scans can add drafts or suggest more sources for existing ideas.
+- Open **Reflect** to see recent passages in **Browse**. You can also browse by date, people and places, themes, or projects without setting up a model.
+- Select **Find ideas in my notes** to look for recurring ideas across the vault. Review what the scan sends to OpenAI before you select **Run scan**. Reflect opens the first idea alongside the passages it found.
+- Open **Ideas** to read drafts and kept ideas. **Keep idea** saves a Markdown note with links to its sources. To add links back from the source notes, select **Choose source links** before keeping the idea.
+- Choose **Reflect on this note** in a note’s menu or the command palette. Select **Find related ideas**, read the quoted passages, and choose **Add source** if the note adds something to an idea.
+- Select **Look for more ideas** from **Ideas** to find new drafts or more sources for ideas you already have.
 - **Ask your notes** to explore a question across your vault and save the findings with their original passages.
 
 ## Set up the models
