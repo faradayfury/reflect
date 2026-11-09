@@ -8,7 +8,7 @@ Reflect is an Obsidian plugin for coming back to what you’ve written. It bring
 
 I write down things I notice as I go through the day. It might be something about how I work, or how I feel after spending time with someone. Sometimes I know why it matters to me. Other times I just have a feeling there’s more to it, and I want to come back when I’ve had a little time to think.
 
-After a while, I had years of notes like this. I tried tagging them so I could find things again. At some point I caught myself thinking about where a thought belonged before I’d even written it down. It made me write less.
+After a while, I had years of notes like this. I tried tagging them so I could find them again. At some point I caught myself thinking about where a thought belonged before I’d even written it down. It made me write less.
 
 I wanted to go back through my notes and see what I kept thinking about. A note about a decision at work might have something in common with one I’d written months earlier about a friendship. I’d written them for different reasons, but reading them together might show me I’d been turning over the same question for a while.
 
