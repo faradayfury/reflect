@@ -2,6 +2,8 @@
 
 Reflect is an Obsidian plugin for coming back to what you’ve written. It brings related passages together so you can see which ideas keep coming up. Each passage links back to the note it came from.
 
+**Pre-alpha.** I’m still exploring how Reflect can help you come back to your notes. The workflow may change as I learn what people find useful.
+
 ## Why I built Reflect
 
 I write down things I notice as I go through the day. It might be something about how I work, or how I feel after spending time with someone. Sometimes I know why it matters to me. Other times I just have a feeling there’s more to it, and I want to come back when I’ve had a little time to think.
