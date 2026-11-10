@@ -8,8 +8,13 @@ permissions:
   contents: read
 
 jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
@@ -19,11 +24,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Check the release version and run tests
-        run: |
-          node -e 'const { version } = require("./manifest.json"); if (!/^(0|[1-9]\d*)(\.(0|[1-9]\d*)){2}$/.test(version) || version !== process.env.GITHUB_REF_NAME) throw Error("The tag must match the version in manifest.json.")'
-          node --check main.js
-          node --test tests/*.test.cjs
+      - name: Check that the tag matches the manifest
+        run: node -e 'const { version } = require("./manifest.json"); if (version !== process.env.GITHUB_REF_NAME) throw Error("The tag must match the version in manifest.json.")'
       - name: Attest the release files
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:

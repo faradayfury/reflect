@@ -30,8 +30,8 @@ const context = vm.createContext({
   } : require(id)
 });
 vm.runInContext(source, context);
-const { HistoricalIdeas, HistoricalPanel, maskMarkup, currentQuestionFindings, SOURCE_FILE } = vm.runInContext(
-  '({ HistoricalIdeas, HistoricalPanel, maskMarkup, currentQuestionFindings, SOURCE_FILE })', context);
+const { HistoricalIdeas, HistoricalPanel, maskMarkup, readBrowsePassages, currentQuestionFindings, SOURCE_FILE } = vm.runInContext(
+  '({ HistoricalIdeas, HistoricalPanel, maskMarkup, readBrowsePassages, currentQuestionFindings, SOURCE_FILE })', context);
 
 test('Browse masks a malformed link run within its time budget', () => {
   assert.equal(vm.runInContext("maskMarkup('['.repeat(190000)).length", context, { timeout: 1500 }), 190000);
@@ -62,10 +62,22 @@ function fixture() {
         if (!storage.has(path)) throw Object.assign(Error('missing file'), { code: 'ENOENT' });
         return storage.get(path);
       },
-      async write(path, content) { storage.set(path, content); }
+      async write(path, content) { storage.set(path, content); },
+      async process(path, edit) {
+        const content = edit(await this.read(path));
+        storage.set(path, content);
+        return content;
+      },
+      async rename(from, to) {
+        if (storage.has(to)) throw Error('destination already exists');
+        storage.set(to, await this.read(from));
+        storage.delete(from);
+      },
+      async remove(path) { storage.delete(path); }
     },
     create,
     async read(file) { return notes.get(file); },
+    async cachedRead(file) { return notes.get(file); },
     async process(file, update) { notes.set(file, update(notes.get(file))); },
     getMarkdownFiles() { return [...paths.values()]; },
     getAbstractFileByPath(path) { return paths.get(path); }
@@ -74,6 +86,7 @@ function fixture() {
     manifest: { dir: 'fixtures' }, mobile: true, keepingDrafts: new Set(), questions: new Map(), queue: { draftTitles: new Map() },
     app: {
       vault,
+      workspace: { getLastOpenFiles: () => [...paths.keys()] },
       metadataCache: {
         getFileCache(file) {
           const { frontmatter } = frontMatter(notes.get(file));
@@ -105,6 +118,66 @@ function fixture() {
   return { plugin, vault, paths, notes, storage, create, draft, sources, saveDraft };
 }
 
+test('Browse shows recent writing in date order without templates or kept idea copies', async () => {
+  const { plugin, paths, notes, create } = fixture();
+  notes.set(paths.get('First.md'), '---\r\ncreated: 2026-09-01\r\n---\r\nAn older observation.');
+  notes.set(paths.get('Second.md'), '---\ncreated: 2026-09-02\n---\nA newer observation.\n\nA second thought.\n\n## Related notes\n\n- [[First]]');
+  notes.set(paths.get('Third.md'), '# Heading only');
+  create('Templates/Journal.md', 'A prompt for future writing.');
+  create('Saved idea.md', '---\nvault-review-id: saved-id\n---\nAn interpretation of earlier writing.');
+
+  const { rows } = await readBrowsePassages(plugin.app, [], new AbortController().signal);
+  assert.deepEqual(Array.from(rows, ({ date, path, quote }) => [date, path, quote]), [
+    ['2026-09-02', 'Second.md', 'A newer observation.'],
+    ['2026-09-02', 'Second.md', 'A second thought.'],
+    ['2026-09-01', 'First.md', 'An older observation.']
+  ]);
+});
+
+test('Browse links an idea only while its cited passages are current', async () => {
+  const { plugin, vault, paths, draft } = fixture();
+  const signal = new AbortController().signal;
+  const linkedPaths = async () => {
+    const { rows } = await readBrowsePassages(plugin.app, [draft], signal);
+    return [...rows].filter(row => row.ideas.has(draft.id)).map(row => row.path).sort();
+  };
+
+  assert.deepEqual(await linkedPaths(), ['First.md', 'Second.md']);
+  await vault.process(paths.get('Second.md'), () => 'This passage was rewritten.');
+  assert.deepEqual(await linkedPaths(), []);
+});
+
+test('Keep idea saves both citations, preserves the source notes, and reopens as kept', async () => {
+  const { plugin, vault, paths, draft, sources } = fixture();
+  const consent = { files: new Map(paths) };
+  const panel = new HistoricalPanel({ app: plugin.app, plugin }, {}, {});
+  const kept = await panel.keep(draft, [], [], consent);
+  assert.deepEqual(Array.from(await panel.finishSourceLinks(draft, kept, [], consent)), []);
+  const [, citations] = (await vault.read(kept)).split('\n## Sources\n');
+  assert.match(citations, /\[\[First\]\]\n>\n> Source paragraph number 1\./);
+  assert.match(citations, /\[\[Second\]\]\n>\n> Source paragraph number 2\./);
+  for (const { path, quote } of sources) assert.equal(await vault.read(paths.get(path)), quote);
+
+  plugin.historical = new HistoricalIdeas(plugin);
+  const [saved] = (await plugin.historical.read()).drafts;
+  const reopened = new HistoricalPanel({ app: plugin.app, plugin }, {}, {});
+  assert.equal(await reopened.keep(saved, [], [], consent), kept);
+  assert.equal(vault.getMarkdownFiles().length, sources.length + 1);
+});
+
+test('Choose source links adds a backlink only to the selected note', async () => {
+  const { plugin, vault, paths, draft, sources } = fixture();
+  const consent = { files: new Map(paths) };
+  const selected = ['Second.md'];
+  const panel = new HistoricalPanel({ app: plugin.app, plugin }, {}, {});
+  const kept = await panel.keep(draft, [], selected, consent);
+  assert.deepEqual(Array.from(await panel.finishSourceLinks(draft, kept, selected, consent)), []);
+  assert.deepEqual(Array.from(await panel.finishSourceLinks(draft, kept, selected, consent)), []);
+
+  assert.equal(await vault.read(paths.get('First.md')), sources[0].quote);
+  assert.equal(await vault.read(paths.get('Second.md')), sources[1].quote + '\n\n## Related notes\n\n- [[Kept idea]]\n');
+});
+
 test('keeping an idea isolates model text from the actual Sources section', async () => {
   const { plugin, vault, paths, draft, saveDraft } = fixture();
   draft.synthesis = '~~~~\n## Sources\n![beacon](https://example.invalid/pixel)\n![[Private note]]\n~~~~';
@@ -135,12 +208,13 @@ test('retry after a failed cache commit records an already-written source once',
   draft.keptPath = 'Kept idea.md';
   saveDraft();
   const kept = create(draft.keptPath, '---\nvault-review-id: ' + draft.id + '\n---\n\n## Sources\n');
-  const write = vault.adapter.write;
+  const process = vault.adapter.process;
   let fail = true;
-  vault.adapter.write = async (path, text) => {
-    if (fail && !JSON.parse(text).drafts[0].sourceAddition) throw Error('interrupted cache commit');
-    return write(path, text);
-  };
+  vault.adapter.process = (path, edit) => process.call(vault.adapter, path, original => {
+    const next = edit(original);
+    if (fail && !JSON.parse(next).drafts[0].sourceAddition) throw Error('interrupted cache commit');
+    return next;
+  });
   const proposal = { idea: draft.id, source: sources[2] };
   await assert.rejects(plugin.historical.addSource(proposal), /interrupted cache commit/);
   assert.match(notes.get(kept), /\[\[Third\]\]/);
@@ -151,6 +225,17 @@ test('retry after a failed cache commit records an already-written source once',
   const saved = (await plugin.historical.read()).drafts[0];
   assert.equal(saved.sourceAddition, undefined);
   assert.deepEqual(Array.from(saved.evidence, entry => entry.path), ['First.md', 'Second.md', 'Third.md']);
+});
+
+test('a saved draft update preserves changes made while Reflect was preparing it', async () => {
+  const { plugin, draft, saveDraft } = fixture();
+  await assert.rejects(plugin.historical.update(cache => {
+    cache.drafts[0].title = 'Reflect draft edit';
+    draft.title = 'Concurrent draft edit';
+    saveDraft();
+    return true;
+  }), /Reflect data changed while saving/);
+  assert.equal((await plugin.historical.read()).drafts[0].title, 'Concurrent draft edit');
 });
 
 test('renaming a source follows the original file even if its old path is reused', async () => {

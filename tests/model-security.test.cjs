@@ -1,8 +1,6 @@
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { mkdir, mkdtemp, rename, rm, stat, symlink, writeFile } = require('node:fs/promises');
 const https = require('node:https');
-const { tmpdir } = require('node:os');
 const path = require('node:path');
 const { Duplex } = require('node:stream');
 const test = require('node:test');
@@ -10,19 +8,15 @@ const vm = require('node:vm');
 
 const source = readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
 
-function loadReflect(modules = {}, timeout = setTimeout) {
+function loadReflect(modules = {}) {
   const context = vm.createContext({
-    AbortController, AbortSignal, Buffer, URL, clearTimeout, module: {}, process, setTimeout: timeout,
+    AbortController, AbortSignal, Buffer, URL, clearTimeout, module: {}, process, setTimeout,
     require: id => id === 'obsidian' ? {
       ItemView: class {}, Modal: class {}, Plugin: class {}, PluginSettingTab: class {}, Platform: { isDesktopApp: true }
     } : modules[id] ?? require(id)
   });
   vm.runInContext(source, context);
-  return {
-    plugin: new context.module.exports(),
-    askCodex: vm.runInContext('askCodex', context),
-    codexFile: vm.runInContext('codexFile', context)
-  };
+  return { plugin: new context.module.exports() };
 }
 
 function configurePlugin(plugin, saved = {}) {
@@ -90,19 +84,26 @@ function inMemoryHttps(fingerprint) {
   return { transport, socket, wire };
 }
 
-test('background Ollama requires an approved pin and writes only after the peer matches', async () => {
+test('a legacy Ollama approval does not send in the background and a manual request honors the pin', async () => {
   const fingerprint = 'ab'.repeat(32);
   const signal = new AbortController().signal;
   const tick = () => new Promise(resolve => setImmediate(resolve));
   for (const matches of [false, true]) {
     const { transport, socket, wire } = inMemoryHttps(matches ? fingerprint : 'cd'.repeat(32));
     const { plugin } = loadReflect({ 'node:https': transport });
-    configurePlugin(plugin);
-    await plugin.onload();
-    const request = () => plugin.requestOllama({ text: 'private fixture passage' }, signal, { background: true });
+    const { localStorage } = configurePlugin(plugin);
+    const request = () => plugin.requestOllama({ text: 'private fixture passage' }, signal);
     await assert.rejects(request, /Approve a local Ollama server/);
-    assert.throws(() => plugin.setLocalOllamaSettings({ url: 'http://127.0.0.1:11434', background: true }), /require HTTPS/);
-    plugin.setLocalOllamaSettings({ url: 'https://127.0.0.1:11434', fingerprint, background: true });
+    let ready;
+    plugin.app.workspace.onLayoutReady = callback => { ready = callback; };
+    plugin.app.vault.on = () => {};
+    plugin.registerEvent = () => {};
+    localStorage.set('reflect:trusted-local-ollama:v1', { url: 'https://127.0.0.1:11434', fingerprint, background: true });
+    await plugin.onload();
+    ready();
+    await tick();
+    assert.equal(plugin.localOllamaSettings.background, undefined);
+    assert.equal(wire.length, 0);
 
     const response = request();
     const check = matches ? response : assert.rejects(response, /does not match/);
@@ -121,65 +122,50 @@ test('background Ollama requires an approved pin and writes only after the peer 
   }
 });
 
-test('Codex rejects vault executables and requires reapproval after the approved file changes',
-  { skip: process.platform === 'win32' }, async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'reflect-model-test-'));
-    try {
-      const { askCodex, codexFile } = loadReflect();
-      const vault = path.join(root, 'vault');
-      const installed = path.join(root, 'codex');
-      const vaultProgram = path.join(vault, 'codex');
-      const script = '#!/bin/sh\n' +
-        'while [ "$1" != "-o" ]; do shift; done\n' +
-        'IFS= read -r prompt\n' +
-        'printf \'[{"text":"%s","cwd":"%s","environment":"%s"}]\' "$prompt" "$PWD" "\${REFLECT_TEST_MARKER-unset}" > "$2"\n';
-      await mkdir(vault);
-      await writeFile(installed, script, { mode: 0o700 });
-      await writeFile(vaultProgram, script, { mode: 0o700 });
-      await symlink(vaultProgram, path.join(root, 'vault-alias'));
-      await assert.rejects(codexFile(vaultProgram, vault), /outside this vault/);
-      await assert.rejects(codexFile(path.join(root, 'vault-alias'), vault), /outside this vault/);
+test('upgrading from an approved Codex executable requires a new connection', async () => {
+  const { plugin } = loadReflect();
+  const { localStorage, secrets } = configurePlugin(plugin);
+  const legacy = { provider: 'codex', model: 'fixture', executable: '/fixtures/codex', identity: 'approved' };
+  localStorage.set('reflect:trusted-scan-model:v1', legacy);
+  await plugin.onload();
+  assert.equal(plugin.activeScanModel, null);
+  assert.equal(plugin.needsCodexSetup, true);
+  assert.deepEqual(secrets, []);
+  assert.throws(() => plugin.scanConnection(legacy), /Approve/);
+  await assert.rejects(plugin.approveScanModel(legacy), /Choose a model connection/);
+});
 
-      const approved = { model: 'fixture', ...await codexFile(installed, vault) };
-      const signal = new AbortController().signal;
-      const inherited = process.env.REFLECT_TEST_MARKER;
-      process.env.REFLECT_TEST_MARKER = 'must not reach the child';
-      try {
-        const [answer] = await askCodex(approved, 'fixture text', signal, vault);
-        assert.equal(answer.text, 'fixture text');
-        assert.equal(answer.environment, 'unset');
-        await assert.rejects(stat(answer.cwd), { code: 'ENOENT' });
-      } finally {
-        if (inherited === undefined) delete process.env.REFLECT_TEST_MARKER;
-        else process.env.REFLECT_TEST_MARKER = inherited;
-      }
-
-      await rename(installed, installed + '.old');
-      await writeFile(installed, script, { mode: 0o700 });
-      await assert.rejects(askCodex(approved, 'fixture text', signal, vault), /executable changed/);
-    } finally {
-      await rm(root, { recursive: true, force: true });
+test('an approved OpenAI-compatible loopback connection sends its key and prompt only to the pinned peer', async () => {
+  const fingerprint = 'ab'.repeat(32);
+  const signal = new AbortController().signal;
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  for (const matches of [false, true]) {
+    const { transport, socket, wire } = inMemoryHttps(matches ? fingerprint : 'cd'.repeat(32));
+    const { plugin } = loadReflect({ 'node:https': transport });
+    configurePlugin(plugin);
+    const input = { provider: 'custom', model: 'fixture', url: 'https://127.0.0.1:41729/v1', secret: 'companion-key', fingerprint };
+    await assert.rejects(plugin.approveScanModel({ ...input, url: 'https://remote.example/v1' }), /loopback HTTPS/);
+    plugin.saveApprovedScanModel(await plugin.approveScanModel(input));
+    await plugin.onload();
+    assert.equal(plugin.activeScanModel.fingerprint, fingerprint);
+    const response = plugin.scanConnection(plugin.activeScanModel).run('private fixture passage', signal);
+    const check = matches ? response : assert.rejects(response, /Could not read a response/);
+    await tick();
+    assert.equal(wire.length, 0);
+    socket.emit('secureConnect');
+    await tick();
+    if (matches) {
+      const request = Buffer.concat(wire).toString();
+      assert.match(request, /^POST \/v1\/chat\/completions /);
+      assert.match(request, /Authorization: Bearer fixture-secret/i);
+      assert.match(request, /private fixture passage/);
+      const result = JSON.stringify({ choices: [{ message: { content: '[{"text":"fixture"}]' } }] });
+      socket.push(Buffer.from('HTTP/1.1 200 OK\r\nContent-Length: ' + result.length + '\r\nConnection: close\r\n\r\n' + result));
+      assert.equal((await check)[0].text, 'fixture');
+    } else {
+      assert.equal(wire.length, 0);
+      await check;
     }
-  });
-
-test('Codex stops when the child exceeds its output limit or deadline',
-  { skip: process.platform === 'win32' }, async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'reflect-limit-test-'));
-    try {
-      const vault = path.join(root, 'vault');
-      const installed = path.join(root, 'codex');
-      const signal = new AbortController().signal;
-      await mkdir(vault);
-      await writeFile(installed, '#!/bin/sh\nwhile :; do printf %s ' + 'x'.repeat(8192) + '; done\n', { mode: 0o700 });
-      const { askCodex, codexFile } = loadReflect();
-      const chatty = { model: 'fixture', ...await codexFile(installed, vault) };
-      await assert.rejects(askCodex(chatty, 'fixture text', signal, vault), /too much data/);
-
-      await writeFile(installed, '#!/bin/sh\nexec /bin/sleep 10\n');
-      const silent = { model: 'fixture', ...await codexFile(installed, vault) };
-      const shortDeadline = loadReflect({}, (callback, delay) => setTimeout(callback, Math.min(delay, 40)));
-      await assert.rejects(shortDeadline.askCodex(silent, 'fixture text', signal, vault), /too long/);
-    } finally {
-      await rm(root, { recursive: true, force: true });
-    }
-  });
+    socket.destroy();
+  }
+});
