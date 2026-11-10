@@ -103,7 +103,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .vault-review { -webkit-font-smoothing: antialiased; --review-rule: var(--background-modifier-border); --review-serif: Georgia, 'Times New Roman', serif; }
 .vault-review { --no-tooltip: true; }
 .vault-review :is(.vault-review-options, .vault-review-note-text) { --no-tooltip: initial; }
-.vault-review [hidden] { display: none !important; }
 .vault-review :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--text-normal); outline-offset: 2px; }
 .vault-review-header { margin-block: 0 1rem; }
 .vault-review-label { color: var(--text-muted); font-size: var(--font-ui-small); }
@@ -387,7 +386,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 }
 .vault-review-browse-tools .vault-review-search { flex: 1 1 16rem; min-inline-size: 0; margin: 0; }
 .vault-review-browse-tools .vault-review-actions { margin: 0; padding: 0; }
-.vault-review-browse-tools .vault-review-actions:not(:has(button:not([hidden]))) { display: none; }
 .vault-review-ideas-tools { align-items: center; gap: .4rem .5rem; margin-block: 0 .65rem; padding: 0; }
 .vault-review .vault-review-action-button {
   max-inline-size: 100%;
@@ -420,6 +418,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .vault-review-question { max-inline-size: 42rem; }
 .vault-review-question label { display: grid; gap: .4rem; }
 .vault-review-question textarea { display: block; width: 100%; resize: vertical; font-size: 16px; }
+.vault-review .vault-review-model textarea { display: block; inline-size: 100%; margin-block-start: .4rem; }
+.vault-review-scan-files { max-block-size: 12rem; overflow: auto; overflow-wrap: anywhere; }
+.vault-review-model { margin-block: .75rem; padding-block-start: .4rem; border-block-start: 1px solid var(--review-rule); }
+.vault-review-model .vault-review-actions { align-items: center; }
+.vault-review-model-name { overflow-wrap: anywhere; font-size: var(--font-ui-small); }
+.vault-review-model-fields { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
 .vault-review-question-results { margin-block-start: 1.35rem; }
 .vault-review-question-results > .vault-review-description { margin-block-end: .85rem; }
 .vault-review-question-results > button { margin-block-start: .75rem; }
@@ -541,3 +545,5 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .callout[data-callout-metadata="vault-review-source"] {
   cursor: pointer;
 }
+
+.vault-review [hidden] { display: none; }
